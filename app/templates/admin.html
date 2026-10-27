@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Admin{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2>User access management</h2>
+    <p class="text-muted">
+      Suspended users cannot log in and existing sessions stop working. Deleting a user permanently removes their account,
+      certificates, signed documents, and encrypted messages. A deleted user must register again.
+    </p>
+    <table>
+      <tr><th>Username</th><th>Email</th><th>Access</th><th>Actions</th></tr>
+      {% for user in users %}
+        <tr>
+          <td>{{ user.username }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ 'Active' if user.active else 'Suspended' }}</td>
+          <td class="admin-user-actions">
+            {% if user.active %}
+              <form method="post" action="{{ url_for('suspend_user', user_id=user.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="button danger" type="submit">Suspend access</button>
+              </form>
+            {% else %}
+              <form method="post" action="{{ url_for('activate_user', user_id=user.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="button" type="submit">Restore access</button>
+              </form>
+            {% endif %}
+            <form method="post" action="{{ url_for('delete_user', user_id=user.id) }}"
+                  onsubmit="return confirm('Permanently delete this user and all linked documents, certificates, and messages?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="button danger" type="submit">Delete user and data</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4">No registered users.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Legacy encryption reset</h2>
+    {% if encryption_state and encryption_state.clean_reset_completed %}
+      <p class="text-muted">
+        Reset completed. Previous certificates were revoked and existing encrypted messages were locked. Users can request fresh certificates.
+      </p>
+    {% else %}
+      <p class="text-muted">
+        New messages already use a sender-shared one-time key. This optional, irreversible reset revokes all current certificates and makes existing encrypted messages unreadable.
+        Do not use it unless you intend to invalidate that existing data.
+      </p>
+      <form method="post" action="{{ url_for('reset_for_e2ee') }}"
+            onsubmit="return confirm('This permanently makes existing encrypted messages unreadable and revokes all current certificates. Continue?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>
+          Type RESET to confirm
+          <input type="text" name="confirmation" required autocomplete="off">
+        </label>
+        <button class="button danger" type="submit">Revoke legacy certificates and lock old messages</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Certificate administration</h2>
+    <p class="text-muted">
+      Revoking a signing certificate makes its signatures untrusted, prevents new signing with it, and locks existing encrypted messages signed with it.
+      Recipients cannot decrypt or download those messages through this app. Already downloaded copies cannot be recalled, and the administrator's access is unaffected.
+    </p>
+    <table>
+      <tr><th>User</th><th>Subject</th><th>Certificate ID</th><th>X.509 Serial</th><th>Status</th><th>Action</th></tr>
+      {% for cert in certificates %}
+        <tr>
+          <td>{{ cert.user.username }}</td>
+          <td>{{ cert.subject }}</td>
+          <td>{{ cert.certificate_code }}</td>
+          <td>{{ cert.serial_number }}</td>
+          <td>{{ cert.status }}</td>
+          <td>
+            {% if cert.status != 'revoked' %}
+              <form method="post" action="{{ url_for('revoke_certificate_route', certificate_id=cert.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="button danger" type="submit">Revoke</button>
+              </form>
+            {% else %}
+              Revoked
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>Recent audit events</h3>
+    <table>
+      <tr><th>Actor</th><th>Action</th><th>Object</th><th>Outcome</th></tr>
+      {% for event in events %}
+        <tr>
+          <td>{{ event.actor }}</td>
+          <td>{{ event.action }}</td>
+          <td>{{ event.object_name }}</td>
+          <td>{{ event.outcome }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

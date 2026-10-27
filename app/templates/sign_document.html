@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Sign Document{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2>Sign a document</h2>
+    <p class="text-muted">
+      First obtain an active certificate, then either paste text or upload a UTF-8 .txt or PDF file (maximum 10 MB).
+      PDF signatures cover the exact uploaded bytes, which are saved with the document for in-app verification.
+      When verifying later, enter the saved signature; no re-upload is needed.
+    </p>
+    {% if not certificates %}
+      <p class="text-muted">Request a signing certificate before signing documents.</p>
+      <a class="button" href="{{ url_for('request_certificate') }}">Request certificate</a>
+    {% else %}
+    <form id="sign-document-form" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="signature_hex">
+      <label>
+        Title (optional; defaults to the uploaded filename)
+        <input type="text" name="title" placeholder="Signed document">
+      </label>
+      <label>
+        Certificate
+        <select name="certificate_id" required>
+          {% for cert in certificates %}
+            <option value="{{ cert.id }}">{{ cert.certificate_code }} — {{ cert.subject }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Paste plaintext
+        <textarea name="document_text" rows="7" placeholder="Paste the exact text you want to sign"></textarea>
+      </label>
+      <label>
+        Or upload a .txt or .pdf file
+        <input type="file" name="document_file" accept=".txt,.pdf,text/plain,application/pdf">
+      </label>
+      {% if e2ee_mode %}
+        <label>
+          Key-unlock passphrase
+          <input type="password" name="passphrase" autocomplete="current-password" required>
+        </label>
+        <div id="e2ee-sign-status" class="text-muted" role="status" aria-live="polite"></div>
+        <script src="{{ url_for('static', filename='js/e2ee.js') }}" defer></script>
+      {% endif %}
+      <button class="button" type="submit">Sign</button>
+    </form>
+    {% endif %}
+
+    {% if result %}
+      <div class="card">
+        <h3>Signature result</h3>
+        <p><strong>Certificate ID:</strong> <code>{{ result.certificate_code }}</code></p>
+        <p><strong>Hash:</strong> <code>{{ result.hash_hex }}</code></p>
+        <p><strong>Signature:</strong> <code>{{ result.signature_hex }}</code></p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

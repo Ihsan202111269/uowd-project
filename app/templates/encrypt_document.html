@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %}Encrypt Document{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2>Sign and encrypt a document</h2>
+    {% if simple_key_mode %}
+      <p class="text-muted">
+        Sign and encrypt a message or PDF, then share the one-time decryption key with the recipient through a separate trusted channel.
+        The app server processes the content to sign and encrypt it.
+      </p>
+      {% if sent_message_key %}
+        <h3>Message sent</h3>
+        <p>Copy this key and share it with the recipient separately. The server does not save the key.</p>
+        <p><strong>One-time decryption key:</strong> <code>{{ sent_message_key }}</code></p>
+        <p><strong>Message ID:</strong> <code>{{ sent_message_id }}</code></p>
+        <a class="button secondary" href="{{ url_for('dashboard') }}">Back to dashboard</a>
+      {% elif not certificates %}
+        <p class="text-muted">Request a signing certificate before sending an encrypted message.</p>
+        <a class="button" href="{{ url_for('request_certificate') }}">Request certificate</a>
+      {% else %}
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label>
+            Title
+            <input type="text" name="title" value="Confidential Report">
+          </label>
+          <label>
+            Recipient
+            <select name="recipient_id" required>
+              <option value="">Select a recipient</option>
+              {% for user in recipients %}
+                <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Your signing certificate
+            <select name="certificate_id" required>
+              <option value="">Select an active certificate</option>
+              {% for cert in certificates %}
+                <option value="{{ cert.id }}">{{ cert.certificate_code }} — {{ cert.subject }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Message text
+            <textarea name="document_text" rows="7" placeholder="Paste a message, or attach a file below."></textarea>
+          </label>
+          <label>
+            Or upload a UTF-8 .txt or PDF file (maximum 6 MB)
+            <input type="file" name="document_file" accept=".txt,.pdf,text/plain,application/pdf">
+          </label>
+          <button class="button" type="submit">Sign and send securely</button>
+        </form>
+      {% endif %}
+    {% elif e2ee_mode %}
+      <p class="text-muted">Your browser signs and encrypts the message. After sending, share its one-time decryption key with the recipient through a separate trusted channel.</p>
+      <form id="e2ee-send-form" data-sender-id="{{ current_user.id }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>
+          Title
+          <input type="text" name="title" value="Confidential Report" required>
+        </label>
+        <label>
+          Recipient
+          <select name="recipient_id" required>
+            <option value="">Select a recipient</option>
+            {% for user in recipients %}
+              <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Your signing certificate
+          <select name="certificate_id" required>
+            <option value="">Select an active certificate</option>
+            {% for cert in certificates %}
+              <option value="{{ cert.id }}" data-serial="{{ cert.serial_number }}">{{ cert.certificate_code }} — {{ cert.subject }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Key-unlock passphrase
+          <input type="password" name="passphrase" autocomplete="current-password" required>
+        </label>
+        <label>
+          Message text
+          <textarea name="document_text" rows="7" placeholder="Paste a message, or attach a PDF below."></textarea>
+        </label>
+        <label>
+          PDF document (optional, up to 4 MB)
+          <input type="file" name="document_file" accept="application/pdf,.pdf">
+        </label>
+        <button class="button" type="submit">Sign and send securely</button>
+      </form>
+      <div id="e2ee-status" class="text-muted" role="status" aria-live="polite"></div>
+      <div id="e2ee-sent-key" class="feature" hidden>
+        <h3>Message sent — copy the decryption key</h3>
+        <p>Share this key with the recipient separately before leaving this page. It is shown only now and is not saved by the server.</p>
+        <p><strong>One-time decryption key:</strong> <code id="e2ee-one-time-key"></code></p>
+        <button id="e2ee-copy-key" class="button secondary" type="button">Copy key</button>
+        <span id="e2ee-copy-status" class="text-muted" role="status" aria-live="polite"></span>
+        <p><strong>Message ID:</strong> <code id="e2ee-sent-message-id"></code></p>
+        <a class="button secondary" href="{{ url_for('dashboard') }}">Back to dashboard</a>
+      </div>
+      <script src="{{ url_for('static', filename='js/e2ee.js') }}" defer></script>
+    {% else %}
+      <p class="text-muted">Your content is signed first, then encrypted for the selected recipient. This legacy setup handles private keys server-side and is not end-to-end encrypted.</p>
+      <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>
+        Title
+        <input type="text" name="title" value="Confidential Report" required>
+      </label>
+      <label>
+        Recipient
+        <select name="recipient_id" required>
+          <option value="">Select a recipient</option>
+          {% for user in recipients %}
+            <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Your signing certificate
+        <select name="certificate_id" required>
+          <option value="">Select an active certificate</option>
+          {% for cert in certificates %}
+            <option value="{{ cert.id }}">{{ cert.certificate_code }} — {{ cert.subject }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Document content (signed before encryption)
+        <textarea name="document_text" rows="7" required>Internal note: Project funding approved.</textarea>
+      </label>
+      <button class="button" type="submit">Sign and send securely</button>
+      </form>
+    {% endif %}
+  </div>
+{% endblock %}

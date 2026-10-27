@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}PKI Prototype{% endblock %}</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #091522;
+        --surface: #101f30;
+        --surface-alt: #172a3f;
+        --primary: #e7eff9;
+        --primary-soft: #1b3550;
+        --accent: #1b4166;
+        --accent-2: #0f9d8a;
+        --text: #e7eff9;
+        --muted: #a7b8ca;
+        --border: #2a4057;
+        --success: #78d6a4;
+        --success-bg: #153528;
+        --danger: #ff8d8d;
+        --danger-bg: #421f2a;
+        --shadow: 0 14px 30px rgba(0, 0, 0, 0.24);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        min-height: 100vh;
+        background-color: var(--bg);
+        background-image:
+          linear-gradient(110deg, rgba(4, 14, 29, 0.94), rgba(5, 23, 43, 0.82)),
+          url("{{ url_for('static', filename='images/security-background.png') }}");
+        background-position: center;
+        background-size: cover;
+        background-attachment: fixed;
+        color: var(--text);
+      }
+
+      a { color: inherit; }
+
+      .container {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .public-nav {
+        background: rgba(5, 17, 32, 0.88);
+        border-bottom: 1px solid rgba(146, 190, 229, 0.2);
+        backdrop-filter: blur(14px);
+        position: sticky;
+        top: 0;
+        z-index: 5;
+      }
+
+      .public-nav-inner {
+        max-width: 1180px;
+        min-height: 76px;
+        margin: 0 auto;
+        padding: 12px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        color: #f4f8ff;
+        text-decoration: none;
+        font-size: 1.08rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(116, 205, 255, 0.5);
+        border-radius: 12px;
+        background: linear-gradient(145deg, rgba(17, 177, 222, 0.28), rgba(38, 95, 174, 0.3));
+        color: #7ce4ff;
+        font-size: 1.15rem;
+      }
+
+      .auth-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .auth-actions .button {
+        padding: 10px 16px;
+      }
+
+      .app-layout {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 248px minmax(0, 1fr);
+      }
+
+      .app-sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding: 24px 16px;
+        background: rgba(5, 17, 32, 0.92);
+        border-right: 1px solid rgba(146, 190, 229, 0.2);
+        backdrop-filter: blur(16px);
+      }
+
+      .sidebar-label {
+        margin: 32px 12px 10px;
+        color: #7f9ab7;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .sidebar-nav {
+        display: grid;
+        gap: 5px;
+      }
+
+      .sidebar-nav a,
+      .sidebar-logout button {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 44px;
+        padding: 10px 12px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        color: #d9e9f8;
+        text-decoration: none;
+        font-weight: 600;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      .sidebar-nav a:hover,
+      .sidebar-logout button:hover {
+        background: rgba(94, 167, 222, 0.13);
+        border-color: rgba(134, 193, 237, 0.18);
+      }
+
+      .sidebar-nav a.active {
+        background: rgba(94, 167, 222, 0.2);
+        border-color: rgba(124, 228, 255, 0.35);
+        color: #ffffff;
+      }
+
+      .admin-user-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .admin-user-actions form {
+        margin: 0;
+      }
+
+      .sidebar-icon {
+        width: 20px;
+        text-align: center;
+        color: #81d8f3;
+      }
+
+      .sidebar-spacer { flex: 1; }
+
+      .sidebar-account {
+        margin: 16px 8px 0;
+        padding: 12px;
+        border: 1px solid rgba(146, 190, 229, 0.2);
+        border-radius: 10px;
+        color: #d9e9f8;
+        font-size: 0.88rem;
+      }
+
+      .sidebar-account a.account-password-button {
+        display: block;
+        width: 100%;
+        margin: 10px 0 0;
+        color: #ffffff;
+        font-size: 0.84rem;
+      }
+
+      .sidebar-account-label {
+        display: block;
+        margin-bottom: 4px;
+        color: #7f9ab7;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .sidebar-logout {
+        margin: 16px 0 0;
+      }
+
+      .sidebar-logout button {
+        width: 100%;
+        background: transparent;
+        font: inherit;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .app-main { min-width: 0; }
+
+      .app-main .container {
+        width: 100%;
+      }
+
+      .mobile-brand { display: none; }
+
+      .public-nav {
+        color: #fff;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      .card {
+        background: rgba(12, 29, 47, 0.94);
+        border: 1px solid rgba(123, 172, 212, 0.25);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+        margin: 22px 0;
+        backdrop-filter: blur(10px);
+      }
+
+      .hero {
+        background: linear-gradient(115deg, rgba(9, 39, 70, 0.96), rgba(11, 84, 129, 0.76));
+        border: 1px solid rgba(107, 201, 241, 0.3);
+        color: #fff;
+        padding: clamp(28px, 5vw, 56px);
+        border-radius: 24px;
+        margin: 24px 0 28px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(8px);
+      }
+
+      .hero-kicker {
+        color: #8be7ff;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 0.76rem;
+        font-weight: 700;
+      }
+
+      .hero h1 {
+        margin: 12px 0;
+        max-width: 760px;
+        font-size: clamp(2.2rem, 5vw, 4rem);
+        line-height: 1.08;
+        color: #f4f8ff;
+      }
+
+      .hero p {
+        max-width: 700px;
+        margin: 0 0 24px;
+        font-size: 1.06rem;
+        color: rgba(255,255,255,0.88);
+      }
+
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+      }
+
+      .feature {
+        background: rgba(13, 31, 50, 0.9);
+        border: 1px solid rgba(123, 172, 212, 0.24);
+        border-radius: 14px;
+        padding: 20px;
+        backdrop-filter: blur(8px);
+      }
+
+      .feature h3 {
+        margin-top: 0;
+        color: var(--primary);
+      }
+
+      h1, h2, h3, h4 {
+        color: var(--primary);
+      }
+
+      .button {
+        display: inline-block;
+        background: linear-gradient(135deg, #173a5c 0%, #245783 100%);
+        color: #fff;
+        padding: 14px 18px;
+        border-radius: 12px;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 600;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+        text-align: center;
+      }
+
+      .button-full {
+        display: block;
+        width: 100%;
+        text-align: center;
+      }
+
+      .button-compact {
+        padding: 10px 16px;
+      }
+
+      .document-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .document-actions form {
+        display: inline-flex;
+        margin: 0;
+      }
+
+      .history-details {
+        margin: 12px 0;
+        padding: 12px 16px;
+        border: 1px solid rgba(123, 172, 212, 0.24);
+        border-radius: 12px;
+        background: rgba(13, 31, 50, 0.72);
+      }
+
+      .history-details summary {
+        color: #9bc8f1;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .history-details[open] summary {
+        margin-bottom: 12px;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+        background: linear-gradient(135deg, #204a70 0%, #2d6693 100%);
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.36);
+      }
+
+      .button:focus-visible {
+        outline: 2px solid #9bc8f1;
+        outline-offset: 3px;
+      }
+
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .button-row .button {
+        flex: 1 1 220px;
+      }
+
+      .button.secondary {
+        background: linear-gradient(135deg, #263b52 0%, #344c65 100%);
+        box-shadow: none;
+      }
+
+      .button.danger {
+        background: linear-gradient(135deg, #843b4a 0%, #692c3a 100%);
+        box-shadow: none;
+      }
+
+      .button.success {
+        background: linear-gradient(135deg, #174737 0%, #1d5b46 100%);
+        box-shadow: none;
+      }
+
+      form {
+        display: grid;
+        gap: 16px;
+      }
+
+      label {
+        display: grid;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--primary);
+      }
+
+      input, select, textarea {
+        width: 100%;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #0b1927;
+        color: var(--text);
+        font-size: 15px;
+      }
+
+      input:focus, select:focus, textarea:focus {
+        outline: 2px solid rgba(95, 158, 213, 0.28);
+        border-color: #6b98c2;
+      }
+
+      textarea { min-height: 120px; resize: vertical; }
+
+      .flash {
+        background: var(--success-bg);
+        border: 1px solid #afe0bf;
+        color: var(--success);
+        padding: 12px 14px;
+        border-radius: 10px;
+        margin: 18px 0;
+        font-weight: 600;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        border-radius: 12px;
+        overflow: hidden;
+        color: var(--text);
+      }
+
+      th, td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #192d43;
+        color: #dce9f7;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .status { font-weight: 700; }
+      .success { color: var(--success); }
+      .failure { color: var(--danger); }
+
+      code {
+        background: #1a2b40;
+        border: 1px solid var(--border);
+        padding: 4px 7px;
+        border-radius: 8px;
+        font-size: 0.92rem;
+        word-break: break-word;
+        color: #dbeafe;
+      }
+
+      pre {
+        background: #071321;
+        color: #eaf3ff;
+        padding: 16px;
+        border-radius: 12px;
+        overflow-x: auto;
+      }
+
+      .bg-body { background-color: var(--surface) !important; }
+      .bg-light { background-color: var(--surface-alt) !important; }
+      .bg-dark { background-color: #071321 !important; }
+      .bg-secondary.bg-opacity-10 { background-color: rgba(167, 184, 202, 0.1) !important; }
+      .bg-success { background-color: #174737 !important; }
+      .bg-opacity-10 { background-color: rgba(120, 214, 164, 0.12) !important; }
+      .text-body { color: var(--text) !important; }
+      .text-muted { color: var(--muted) !important; }
+      .text-light { color: #f4f8ff !important; }
+      .text-success { color: var(--success) !important; }
+      .border { border: 1px solid var(--border) !important; }
+      .border-bottom { border-bottom: 1px solid var(--border) !important; }
+      .border-secondary { border-color: #3a526b !important; }
+      .badge {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 600;
+      }
+
+      @media (max-width: 700px) {
+        .container { padding: 18px; }
+        .public-nav-inner { padding: 10px 18px; }
+        .app-layout { display: block; }
+        .app-sidebar {
+          position: relative;
+          height: auto;
+          padding: 12px;
+          border-right: 0;
+          border-bottom: 1px solid rgba(146, 190, 229, 0.2);
+        }
+        .app-sidebar > .brand { display: none; }
+        .sidebar-label, .sidebar-spacer { display: none; }
+        .sidebar-account {
+          margin: 8px 8px 0;
+          padding: 8px 10px;
+        }
+        .sidebar-nav {
+          display: flex;
+          gap: 4px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+        }
+        .sidebar-nav a {
+          flex: 0 0 auto;
+          min-height: 40px;
+          padding: 8px 10px;
+          font-size: 0.88rem;
+        }
+        .sidebar-icon { display: none; }
+        .sidebar-logout { margin: 8px 0 0; }
+        .sidebar-logout button { min-height: 40px; }
+        .mobile-brand { display: flex; margin: 0 0 10px 8px; }
+        .hero { margin-top: 18px; }
+        .auth-actions { gap: 6px; }
+        .auth-actions .button { padding: 9px 11px; }
+        .button-row .button { flex-basis: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    {% if current_user.is_authenticated %}
+      <div class="app-layout">
+        <aside class="app-sidebar">
+          <a class="brand" href="{{ url_for('index') }}">
+            <span class="brand-mark" aria-hidden="true">◆</span>
+            <span>Secure Exchange</span>
+          </a>
+          <div class="sidebar-label">Workspace</div>
+          <nav class="sidebar-nav" aria-label="Workspace">
+            <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' else '' }}" {% if request.endpoint == 'dashboard' %}aria-current="page"{% endif %}><span class="sidebar-icon" aria-hidden="true">▦</span>Dashboard</a>
+            <a href="{{ url_for('request_certificate') }}" class="{{ 'active' if request.endpoint == 'request_certificate' else '' }}" {% if request.endpoint == 'request_certificate' %}aria-current="page"{% endif %}><span class="sidebar-icon" aria-hidden="true">◇</span>Certificates</a>
+            <a href="{{ url_for('sign_document') }}" class="{{ 'active' if request.endpoint == 'sign_document' else '' }}" {% if request.endpoint == 'sign_document' %}aria-current="page"{% endif %}><span class="sidebar-icon" aria-hidden="true">✎</span>Sign document</a>
+            <a href="{{ url_for('verify_document') }}" class="{{ 'active' if request.endpoint == 'verify_document' else '' }}" {% if request.endpoint == 'verify_document' %}aria-current="page"{% endif %}><span class="sidebar-icon" aria-hidden="true">✓</span>Verify signature</a>
+            <a href="{{ url_for('encrypt_document') }}" class="{{ 'active' if request.endpoint == 'encrypt_document' else '' }}" {% if request.endpoint == 'encrypt_document' %}aria-current="page"{% endif %}><span class="sidebar-icon" aria-hidden="true">⇄</span>Sign &amp; Encrypt</a>
+          </nav>
+          {% if current_user.role == 'admin' %}
+            <div class="sidebar-label">Administration</div>
+            <nav class="sidebar-nav" aria-label="Administration">
+              <a href="{{ url_for('admin_panel') }}" class="{{ 'active' if request.endpoint == 'admin_panel' else '' }}" {% if request.endpoint == 'admin_panel' %}aria-current="page"{% endif %}><span class="sidebar-icon" aria-hidden="true">⚙</span>Admin</a>
+              <a href="{{ url_for('audit') }}" class="{{ 'active' if request.endpoint == 'audit' else '' }}" {% if request.endpoint == 'audit' %}aria-current="page"{% endif %}><span class="sidebar-icon" aria-hidden="true">≡</span>Audit trail</a>
+            </nav>
+          {% endif %}
+          <div class="sidebar-spacer"></div>
+          <div class="sidebar-account">
+            <span class="sidebar-account-label">Signed in as</span>
+            <strong>{{ current_user.username }}</strong> · {{ current_user.role|capitalize }}
+            <a href="{{ url_for('change_password') }}" class="button button-compact account-password-button">Change password</a>
+          </div>
+          <form method="post" action="{{ url_for('logout') }}" class="sidebar-logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit"><span class="sidebar-icon" aria-hidden="true">↪</span>Log out</button>
+          </form>
+        </aside>
+        <main class="app-main">
+          <div class="container">
+            <a class="brand mobile-brand" href="{{ url_for('index') }}">
+              <span class="brand-mark" aria-hidden="true">◆</span>
+              <span>Secure Exchange</span>
+            </a>
+    {% else %}
+      <header class="public-nav">
+        <div class="public-nav-inner">
+          <a class="brand" href="{{ url_for('index') }}">
+            <span class="brand-mark" aria-hidden="true">◆</span>
+            <span>Secure Exchange</span>
+          </a>
+          <div class="auth-actions">
+            <a class="button secondary" href="{{ url_for('login') }}">Log in</a>
+            <a class="button" href="{{ url_for('register') }}">Create account</a>
+          </div>
+        </div>
+      </header>
+      <main class="container">
+    {% endif %}
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div class="flash">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+    {% if current_user.is_authenticated %}
+          </div>
+        </main>
+      </div>
+    {% else %}
+      </main>
+    {% endif %}
+    <script>
+      document.addEventListener("submit", (event) => {
+        const form = event.target;
+        if (
+          event.defaultPrevented ||
+          !(form instanceof HTMLFormElement) ||
+          form.method.toLowerCase() !== "post"
+        ) {
+          return;
+        }
+        if (form.dataset.submitting === "true") {
+          event.preventDefault();
+          return;
+        }
+
+        form.dataset.submitting = "true";
+        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((button) => {
+          button.disabled = true;
+          if (button instanceof HTMLButtonElement) {
+            button.dataset.originalLabel = button.textContent;
+            button.textContent = "Processing...";
+          } else {
+            button.dataset.originalLabel = button.value;
+            button.value = "Processing...";
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

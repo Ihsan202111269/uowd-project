@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Verify Signature{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2>Verify signature</h2>
+
+    {% if document %}
+      <p>Enter the signature for <strong>{{ document.title }}</strong>. The saved document and its certificate are checked automatically.</p>
+      <form method="post" action="{{ url_for('verify_document', document_id=document.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="document_id" value="{{ document.id }}">
+        <label>
+          Signature (hex)
+          <textarea name="signature_hex" rows="5" required autocomplete="off" spellcheck="false">{{ entered_signature }}</textarea>
+        </label>
+        <button class="button" type="submit">Verify signature</button>
+      </form>
+    {% else %}
+      <p>Select one of your signed documents. You will only need to enter its signature.</p>
+      {% if documents %}
+        <div class="sidebar-nav" aria-label="Your signed documents">
+          {% for item in documents %}
+            <a href="{{ url_for('verify_document', document_id=item.id) }}">
+              {{ item.title }} — Verify signature
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted">You do not have any saved signed documents yet.</p>
+        <a class="button" href="{{ url_for('sign_document') }}">Sign a document</a>
+      {% endif %}
+    {% endif %}
+
+    {% if result %}
+      <div class="card">
+        <h3>Verification result</h3>
+        <p><strong>Saved item:</strong> {{ result.document_title }}</p>
+        {% if result.certificate_code %}
+          <p><strong>Certificate ID:</strong> {{ result.certificate_code }}</p>
+        {% endif %}
+        <p class="status {{ 'success' if result.valid else 'failure' }}">
+          Overall status: {{ 'VERIFIED' if result.valid else 'UNVERIFIED' }}
+        </p>
+        <p>{{ result.message }}</p>
+        <p>Signature matches the exact document content: {{ 'Yes' if result.signature_valid else 'No' }}</p>
+        <p>Signer certificate is trusted and not revoked: {{ 'Yes' if result.chain_valid else 'No' }}</p>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

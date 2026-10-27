@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Decrypt Document{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-3">
+  <div class="col-lg-8 col-md-10">
+    
+    <div class="card shadow border-0 rounded-4 mb-4 bg-body">
+      <div class="card-header pki-header py-3 px-4 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-semibold">Decrypted Payload: {{ doc.title }}</h5>
+        <span class="badge bg-success">Securely Decrypted</span>
+      </div>
+      <div class="card-body p-4 p-md-5">
+        
+        <div class="mb-3">
+          <label class="form-label text-muted small fw-bold text-uppercase">Sender</label>
+          <div class="p-3 bg-secondary bg-opacity-10 rounded-3 border text-body fw-semibold">
+            {{ doc.sender.username }} ({{ doc.sender.email }})
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label text-muted small fw-bold text-uppercase">Decrypted Plaintext Content</label>
+          <textarea class="form-control font-monospace shadow-sm bg-body text-body" rows="6" readonly>{{ decrypted_text }}</textarea>
+        </div>
+
+        <div class="button-row">
+          <a href="{{ url_for('dashboard') }}" class="button secondary">Back to Dashboard</a>
+          <a href="{{ url_for('download_decrypted_document', document_id=doc.id) }}" class="button success">
+            📥 Download PDF
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
