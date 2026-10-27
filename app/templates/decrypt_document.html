@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block title %}Secure Decryption Portal{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-5">
+  <div class="col-lg-8 col-md-10">
+    
+    <!-- Professional Security Envelope Card -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4 bg-body"
+         data-encrypted-document-id="{{ encrypted.id }}"
+         data-sender-id="{{ encrypted.sender_id }}"
+         data-recipient-id="{{ encrypted.recipient_id }}"
+         data-message-title="{{ encrypted.title }}">
+      
+      <!-- Card Header -->
+      <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+        <div>
+          <span class="badge {{ 'bg-success' if verification and verification.valid else 'bg-secondary' }} bg-opacity-10 px-3 py-2 rounded-pill fw-semibold mb-2">
+            {{ 'Decrypted and verified' if verification and verification.valid else 'Encrypted message' }}
+          </span>
+          <h3 class="fw-bold text-body mb-0">{{ encrypted.title }}</h3>
+        </div>
+        <span class="text-muted small font-monospace">ID #{{ encrypted.id }}</span>
+      </div>
+
+      <div class="card-body p-4 p-md-4">
+        
+        <!-- Metadata Grid -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="p-3 bg-light rounded-3 border">
+              <span class="d-block text-muted small fw-bold text-uppercase mb-1">Sender</span>
+              <span class="text-body fw-semibold">{{ encrypted.sender.username }} <span class="text-muted small">({{ encrypted.sender.email }})</span></span>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 bg-light rounded-3 border">
+              <span class="d-block text-muted small fw-bold text-uppercase mb-1">Cipher Suite</span>
+              <span class="text-body fw-semibold font-monospace small">
+                {% if payload and payload.version == 3 %}
+                  AES-256-GCM (one-time key)
+                {% elif e2ee_mode %}
+                  ECDH P-256 / HKDF-SHA256 / AES-256-GCM
+                {% else %}
+                  X25519 / HKDF / AES-GCM
+                {% endif %}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {% if one_time_message and not verification %}
+          <p class="text-muted">
+            Enter the one-time decryption key the sender shared with you. The key is used to decrypt and verify this message.
+          </p>
+          <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>
+              One-time decryption key
+              <input type="password" name="message_key" autocomplete="off" required>
+            </label>
+            <button type="submit" class="button">Decrypt and verify</button>
+          </form>
+        {% elif e2ee_mode %}
+          <p class="text-muted">
+            {% if payload.version == 3 %}
+              Enter the one-time decryption key the sender shared with you. Decryption and signature verification happen in your browser.
+            {% else %}
+              Enter your key-unlock passphrase to decrypt this older message in your browser.
+            {% endif %}
+          </p>
+          <form id="e2ee-decrypt-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label>
+              {% if payload.version == 3 %}
+                One-time decryption key
+                <input type="password" name="message_key" autocomplete="off" required>
+              {% else %}
+                Key-unlock passphrase
+                <input type="password" name="passphrase" autocomplete="current-password" required>
+              {% endif %}
+            </label>
+            <button type="submit" class="button">Decrypt and verify</button>
+          </form>
+          <div id="e2ee-status" class="text-muted" role="status" aria-live="polite"></div>
+          <div id="e2ee-result" hidden>
+            <div id="e2ee-verification" class="alert"></div>
+            <div id="e2ee-content" class="p-4 bg-dark text-light rounded-3 font-monospace border border-secondary"
+                 style="white-space: pre-wrap; word-break: break-word; min-height: 140px;"></div>
+            <a id="e2ee-download" class="button success" download>Download decrypted PDF</a>
+          </div>
+          <script id="e2ee-payload" type="application/json">{{ payload|tojson }}</script>
+          <script id="e2ee-message-metadata" type="application/json">{{ message_metadata|tojson }}</script>
+          <script src="{{ url_for('static', filename='js/e2ee.js') }}" defer></script>
+        {% elif not verification %}
+          <!-- Unlock Action Trigger -->
+          <div class="text-center py-5 px-3 bg-light rounded-4 border">
+            <h5 class="fw-semibold mb-2">Secure Envelope Ready</h5>
+            <p class="text-muted small mb-4">Decrypt the message, then verify its signature and the sender's certificate.</p>
+            <form method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="button">
+                🔓 Unlock and Decrypt Payload
+              </button>
+            </form>
+          </div>
+        {% else %}
+          <div class="alert {{ 'alert-success' if verification.valid else 'alert-danger' }}">
+            <strong>Overall status: {{ 'VERIFIED — CONTENT RELEASED' if verification.valid else 'REJECTED — CONTENT WITHHELD' }}</strong>
+            <div>{{ verification.message }}</div>
+            <div>Signer: {{ verification.signer }}</div>
+            <div>Signature matches content: {{ 'Yes' if verification.signature_valid else 'No' }}</div>
+            <div>Certificate trusted and active: {{ 'Yes' if verification.certificate_trusted else 'No' }}</div>
+            <div class="small">
+              Content is released only when the signature matches and the signer certificate is trusted, active, and not revoked.
+            </div>
+          </div>
+
+          {% if verification.valid %}
+            <div class="mb-4">
+              {% if verification.content_type == 'application/pdf' %}
+                <p class="text-muted">The PDF was decrypted and its signature verified.</p>
+              {% else %}
+                <label class="form-label text-muted small fw-bold text-uppercase mb-2">Decrypted Document Content</label>
+                <div class="p-4 bg-dark text-light rounded-3 font-monospace shadow-inner border border-secondary" style="white-space: pre-wrap; word-break: break-all; min-height: 140px; font-size: 0.95rem; line-height: 1.6;">{{ verification.content }}</div>
+              {% endif %}
+            </div>
+          {% else %}
+            <div class="alert alert-danger">
+              The encrypted payload was rejected. Its plaintext is withheld, and downloading is disabled.
+            </div>
+          {% endif %}
+
+          <!-- Professional Action Button Toolbar -->
+          <div class="button-row pt-2">
+            <a href="{{ url_for('dashboard') }}" class="button secondary">
+              ← Back to Dashboard
+            </a>
+            {% if verification.valid %}
+              {% if one_time_message %}
+                <form method="post" action="{{ url_for('download_decrypted_document', document_id=encrypted.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="message_key" value="{{ submitted_key }}">
+                  <button type="submit" class="button success">📥 Download verified PDF</button>
+                </form>
+              {% else %}
+                <a href="{{ url_for('download_decrypted_document', document_id=encrypted.id) }}" class="button success">
+                  📥 Download verified PDF
+                </a>
+              {% endif %}
+            {% endif %}
+          </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

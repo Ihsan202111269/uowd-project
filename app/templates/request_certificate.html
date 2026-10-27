@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Request Certificate{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2>Signing certificate</h2>
+    {% if has_active_certificate %}
+      <p class="text-muted">You already have an active signing certificate.</p>
+      <a class="button" href="{{ url_for('dashboard') }}">Back to dashboard</a>
+    {% else %}
+      <p class="text-muted">
+        Request a certificate to sign documents and send encrypted messages. Your private signing key is protected at rest by the application.
+      </p>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>
+          Subject name
+          <input type="text" name="subject" value="{{ current_user.username }}" required>
+        </label>
+        <button class="button" type="submit">Issue certificate</button>
+      </form>
+    {% endif %}
+  </div>
+{% endblock %}

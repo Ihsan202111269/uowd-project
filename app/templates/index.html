@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}Secure Document Exchange{% endblock %}
+
+{% block content %}
+  <section class="hero">
+    <div class="hero-kicker">PKI · Digital signatures · Secure exchange</div>
+    <h1>Secure documents.<br>Trusted signatures.</h1>
+    <p>
+      Sign documents with a digital certificate, verify signer trust, and exchange confidential files through one clear workflow.
+    </p>
+    <div class="hero-actions">
+      <a class="button" href="{{ url_for('login') }}">Log in</a>
+      <a class="button secondary" href="{{ url_for('register') }}">Create an account</a>
+    </div>
+  </section>
+{% endblock %}

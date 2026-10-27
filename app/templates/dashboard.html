@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+{% macro signed_document_row(doc) %}
+  <tr>
+    <td class="fw-semibold py-3 px-3">{{ doc.title }}</td>
+    <td class="py-3 px-3">
+      {% if doc.certificate and doc.certificate.status == 'revoked' %}
+        Locked — signer certificate revoked
+      {% else %}
+        {{ doc.status|capitalize }}
+      {% endif %}
+    </td>
+    <td class="py-3 px-3">
+      <div class="document-actions">
+        {% if doc.certificate and doc.certificate.status == 'active' %}
+          <a href="{{ url_for('verify_document', document_id=doc.id) }}" class="button button-compact">Verify signature</a>
+          <a href="{{ url_for('download_document', document_id=doc.id) }}" class="button button-compact">Download PDF</a>
+        {% endif %}
+        <form method="post" action="{{ url_for('delete_document', document_id=doc.id) }}"
+              onsubmit="return confirm('Permanently delete this signed document? This cannot be undone.');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="button button-compact danger" type="submit">Delete</button>
+        </form>
+      </div>
+    </td>
+  </tr>
+{% endmacro %}
+
+{% macro inbox_row(enc, unavailable_message_ids, unavailable_message_statuses) %}
+  <tr>
+    <td class="fw-semibold py-3 px-3">{{ enc.title }}</td>
+    <td class="text-muted py-3 px-3">{{ enc.sender.username }}</td>
+    <td class="text-end py-3 px-3">
+      {% if enc.id in unavailable_message_ids %}
+        <span class="text-muted">
+          {% if unavailable_message_statuses.get(enc.id) == 'access_revoked' %}
+            Locked — signer certificate revoked
+          {% elif unavailable_message_statuses.get(enc.id) == 'e2ee_reset' %}
+            Legacy message locked after E2EE reset
+          {% else %}
+            Legacy message locked after key rotation
+          {% endif %}
+        </span>
+      {% else %}
+        <a href="{{ url_for('decrypt_document', document_id=enc.id) }}" class="button button-compact">Decrypt</a>
+      {% endif %}
+    </td>
+  </tr>
+{% endmacro %}
+
+{% macro sent_row(sent) %}
+  <tr>
+    <td class="fw-semibold py-3 px-3">{{ sent.title }}</td>
+    <td class="py-3 px-3">{{ sent.recipient.username }}</td>
+    <td class="text-muted py-3 px-3">{{ sent.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+  </tr>
+{% endmacro %}
+
+<div class="row justify-content-center py-4">
+  <div class="col-lg-10 col-md-12">
+    
+    <!-- Dashboard Container Card -->
+    <div class="card shadow-sm border-0 rounded-4 bg-body p-4 p-md-5 mb-4">
+      
+      <!-- Dashboard Title Header -->
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 pb-3 border-bottom">
+        <div>
+          <h2 class="fw-bold mb-1 text-body">Dashboard Workspace</h2>
+          <p class="text-muted mb-0">Welcome back, <span class="fw-semibold text-body">{{ current_user.username }}</span>. Overview of your certificates, signed documents, and secure messages below.</p>
+        </div>
+      </div>
+
+      <!-- 1. Certificates Section -->
+      <div class="mb-5">
+        <h5 class="fw-bold text-body mb-3">🛡️ Active Certificates</h5>
+        {% if certificates %}
+          <div class="table-responsive mb-3">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="text-muted text-uppercase fs-8 bg-light">
+                <tr>
+                  <th class="py-3 px-3 rounded-start">Subject</th>
+                  <th class="py-3 px-3">Certificate ID</th>
+                  <th class="py-3 px-3 rounded-end">X.509 Serial</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cert in certificates %}
+                <tr>
+                  <td class="fw-semibold py-3 px-3">{{ cert.subject }}</td>
+                  <td class="text-muted font-monospace py-3 px-3">{{ cert.certificate_code }}</td>
+                  <td class="text-muted font-monospace py-3 px-3">{{ cert.serial_number }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-3 bg-light rounded-3 text-muted small mb-3">
+            No active certificates found in your vault.
+          </div>
+        {% endif %}
+
+        <a href="{{ url_for('request_certificate') }}" class="button button-full">
+          Request Certificate
+        </a>
+      </div>
+
+      <!-- 2. Signed Documents Section -->
+      <div class="mb-5">
+        <h5 class="fw-bold text-body mb-3">✍️ Signed Documents <span class="text-muted small">({{ documents|length }})</span></h5>
+        {% if documents %}
+          <div class="table-responsive mb-3">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="text-muted text-uppercase fs-8 bg-light">
+                <tr>
+                  <th class="py-3 px-3 rounded-start">Title</th>
+                  <th class="py-3 px-3">Status</th>
+                  <th class="py-3 px-3 text-end rounded-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for doc in documents[:recent_limit] %}
+                  {{ signed_document_row(doc) }}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if documents|length > recent_limit %}
+            <details class="history-details">
+              <summary>Show {{ documents|length - recent_limit }} older signed documents</summary>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="text-muted text-uppercase fs-8 bg-light">
+                    <tr><th>Title</th><th>Status</th><th class="text-end">Action</th></tr>
+                  </thead>
+                  <tbody>
+                    {% for doc in documents[recent_limit:] %}
+                      {{ signed_document_row(doc) }}
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          {% endif %}
+        {% else %}
+          <div class="p-3 bg-light rounded-3 text-muted small mb-3">
+            You have not signed any documents yet.
+          </div>
+        {% endif %}
+
+        <a href="{{ url_for('sign_document') }}" class="button button-full">
+          Sign New Document
+        </a>
+      </div>
+
+      <!-- 3. Encrypted Messages Section -->
+      <div>
+        <h5 class="fw-bold text-body mb-3">📬 Encrypted Messages Inbox <span class="text-muted small">({{ encrypted_documents|length }})</span></h5>
+        <p class="text-muted small">
+          Certificate revocation affects signature trust, not decryption access. If you already decrypted or downloaded a copy, revocation cannot erase it.
+        </p>
+        {% if encrypted_documents %}
+          <div class="table-responsive mb-3">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="text-muted text-uppercase fs-8 bg-light">
+                <tr>
+                  <th class="py-3 px-3 rounded-start">Title</th>
+                  <th class="py-3 px-3">Sender</th>
+                  <th class="py-3 px-3 text-end rounded-end">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for enc in encrypted_documents[:recent_limit] %}
+                  {{ inbox_row(enc, unavailable_message_ids, unavailable_message_statuses) }}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if encrypted_documents|length > recent_limit %}
+            <details class="history-details">
+              <summary>Show {{ encrypted_documents|length - recent_limit }} older inbox messages</summary>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="text-muted text-uppercase fs-8 bg-light">
+                    <tr><th>Title</th><th>Sender</th><th class="text-end">Action</th></tr>
+                  </thead>
+                  <tbody>
+                    {% for enc in encrypted_documents[recent_limit:] %}
+                      {{ inbox_row(enc, unavailable_message_ids, unavailable_message_statuses) }}
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          {% endif %}
+        {% else %}
+          <div class="p-3 bg-light rounded-3 text-muted small mb-3">
+            No encrypted messages received in your inbox.
+          </div>
+        {% endif %}
+
+        <a href="{{ url_for('encrypt_document') }}" class="button button-full">
+          Sign and Send Securely
+        </a>
+      </div>
+
+      <!-- 4. Sent Secure Documents -->
+      <div class="mt-5">
+        <h5 class="fw-bold text-body mb-3">📤 Sent Secure Documents <span class="text-muted small">({{ sent_documents|length }})</span></h5>
+        {% if sent_documents %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="text-muted text-uppercase fs-8 bg-light">
+                <tr>
+                  <th class="py-3 px-3 rounded-start">Title</th>
+                  <th class="py-3 px-3">Recipient</th>
+                  <th class="py-3 px-3 rounded-end">Sent</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for sent in sent_documents[:recent_limit] %}
+                  {{ sent_row(sent) }}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if sent_documents|length > recent_limit %}
+            <details class="history-details">
+              <summary>Show {{ sent_documents|length - recent_limit }} older sent messages</summary>
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="text-muted text-uppercase fs-8 bg-light">
+                    <tr><th>Title</th><th>Recipient</th><th>Sent</th></tr>
+                  </thead>
+                  <tbody>
+                    {% for sent in sent_documents[recent_limit:] %}
+                      {{ sent_row(sent) }}
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          {% endif %}
+        {% else %}
+          <div class="p-3 bg-light rounded-3 text-muted small">
+            You have not sent any secure documents yet.
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+
+  </div>
+</div>
+{% endblock %}

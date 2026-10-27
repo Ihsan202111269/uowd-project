@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Audit{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <h2>Audit trail</h2>
+    <table>
+      <tr><th>Actor</th><th>Action</th><th>Object</th><th>Outcome</th><th>Time</th></tr>
+      {% for event in events %}
+        <tr>
+          <td>{{ event.actor }}</td>
+          <td>{{ event.action }}</td>
+          <td>{{ event.object_name }}</td>
+          <td>{{ event.outcome }}</td>
+          <td>{{ event.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endblock %}

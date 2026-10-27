@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+  <div class="card" style="max-width: 560px; margin: 32px auto;">
+    <h2>Secure login</h2>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>
+        Username
+        <input type="text" name="username" placeholder="admin or alice" required>
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" placeholder="Password" minlength="12" required>
+      </label>
+      <button class="button" type="submit">Login</button>
+    </form>
+    <p>Administrators are created using the server's bootstrap settings.</p>
+    <p style="margin-bottom: 0;">Need an account? <a href="{{ url_for('register') }}">Register here</a>.</p>
+  </div>
+{% endblock %}
